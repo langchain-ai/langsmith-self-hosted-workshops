@@ -20,7 +20,13 @@ _ensure_packages()
 from dotenv import load_dotenv
 from ._shell import run
 from ._validation import ok, warn, fail
-from ._aws_helpers import aws_region, sts_identity
+from ._cloud_helpers import (
+    get_cloud_provider,
+    get_region,
+    get_identity,
+    get_kubernetes_service_name,
+    get_blob_storage_service_name,
+)
 
 def load_env(env_file: Optional[str] = None) -> None:
     """
@@ -69,21 +75,29 @@ def load_env(env_file: Optional[str] = None) -> None:
 
 def check_required_tools() -> None:
     """
-    Check that all required tools are available:
-    - aws cli
-    - terraform
-    - helm
-    - kubectl
-    - jq
+    Check that all required tools are available.
+    Cloud-specific CLI tools are checked based on detected provider.
     """
     print("### Checking required tools...")
-    tools = [
-        ("aws", ["aws", "--version"]),
+    
+    provider = get_cloud_provider()
+    
+    # Common tools required for all clouds
+    common_tools = [
         ("terraform", ["terraform", "version"]),
         ("helm", ["helm", "version"]),
         ("kubectl", ["kubectl", "version", "--client"]),
         ("jq", ["jq", "--version"]),
     ]
+    
+    # Cloud-specific tools
+    cloud_tools = []
+    if provider == "aws":
+        cloud_tools = [("aws", ["aws", "--version"])]
+    elif provider == "azure":
+        cloud_tools = [("az", ["az", "--version"])]
+    
+    tools = common_tools + cloud_tools
     
     missing = []
     for tool_name, version_cmd in tools:
@@ -106,26 +120,42 @@ def check_required_tools() -> None:
     
     ok("All required tools are available")
 
-def print_aws_info() -> None:
+def print_cloud_info() -> None:
     """
-    Print AWS identity and region information.
+    Print cloud provider identity and region information.
     """
-    print("### AWS Configuration")
+    provider = get_cloud_provider()
+    provider_display = provider.upper()
+    
+    print(f"### {provider_display} Configuration")
     try:
-        region = aws_region()
+        region = get_region()
         print(f"Region: {region}")
         
-        identity = sts_identity()
-        account_id = identity.get("Account", "unknown")
-        user_arn = identity.get("Arn", "unknown")
-        user_id = identity.get("UserId", "unknown")
+        identity = get_identity()
         
-        print(f"Account ID: {account_id}")
-        print(f"User ARN: {user_arn}")
-        print(f"User ID: {user_id}")
-        ok("AWS credentials are valid")
+        if provider == "aws":
+            account_id = identity.get("Account", "unknown")
+            user_arn = identity.get("Arn", "unknown")
+            user_id = identity.get("UserId", "unknown")
+            
+            print(f"Account ID: {account_id}")
+            print(f"User ARN: {user_arn}")
+            print(f"User ID: {user_id}")
+        elif provider == "azure":
+            subscription_id = identity.get("SubscriptionId") or identity.get("Account", "unknown")
+            subscription_name = identity.get("SubscriptionName", "unknown")
+            tenant_id = identity.get("TenantId", "unknown")
+            user = identity.get("User") or identity.get("UserId", "unknown")
+            
+            print(f"Subscription ID: {subscription_id}")
+            print(f"Subscription Name: {subscription_name}")
+            print(f"Tenant ID: {tenant_id}")
+            print(f"User: {user}")
+        
+        ok(f"{provider_display} credentials are valid")
     except Exception as e:
-        fail(f"Failed to get AWS identity: {e}")
+        fail(f"Failed to get {provider_display} identity: {e}")
 
 def setup_artifacts_dir(artifacts_dir: Optional[str] = None) -> Path:
     """
@@ -149,7 +179,7 @@ def bootstrap(env_file: Optional[str] = None, artifacts_dir: Optional[str] = Non
     Main bootstrap function that:
     1. Loads environment variables from .env file
     2. Checks that required tools exist
-    3. Prints AWS identity and region
+    3. Prints cloud provider identity and region
     4. Creates ARTIFACTS_DIR
     
     Returns a dict with bootstrap information.
@@ -164,8 +194,8 @@ def bootstrap(env_file: Optional[str] = None, artifacts_dir: Optional[str] = Non
     # Check required tools
     check_required_tools()
     
-    # Print AWS info
-    print_aws_info()
+    # Print cloud info
+    print_cloud_info()
     
     # Setup artifacts directory
     artifacts_path = setup_artifacts_dir(artifacts_dir)
@@ -174,9 +204,15 @@ def bootstrap(env_file: Optional[str] = None, artifacts_dir: Optional[str] = Non
     ok("Bootstrap complete!")
     print("=" * 60)
     
+    provider = get_cloud_provider()
+    
     return {
         "artifacts_dir": str(artifacts_path),
-        "aws_region": aws_region(),
-        "aws_identity": sts_identity(),
+        "cloud_provider": provider,
+        "region": get_region(),
+        "identity": get_identity(),
+        # Backward compatibility
+        "aws_region": get_region() if provider == "aws" else None,
+        "aws_identity": get_identity() if provider == "aws" else None,
     }
 

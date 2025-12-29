@@ -31,6 +31,33 @@ def eks_cluster_exists(cluster_name: str) -> bool:
     warn("EKS describe-cluster returned an unexpected error; treat as inconclusive.")
     return False
 
+def configure_kubectl_eks(cluster_name: str, region: Optional[str] = None) -> None:
+    """
+    Configure kubectl to connect to an EKS cluster.
+    
+    Args:
+        cluster_name: Name of the EKS cluster
+        region: AWS region (optional, will be auto-detected if not provided)
+    """
+    if region is None:
+        region = aws_region()
+    
+    run(["aws", "eks", "update-kubeconfig", "--name", cluster_name, "--region", region],
+        check=True, stream=True)
+
+def verify_s3_access() -> bool:
+    """
+    Verify access to S3.
+    
+    Returns:
+        True if access is verified, False otherwise
+    """
+    try:
+        result = run(["aws", "s3", "ls", "--output", "json"], check=False, stream=False)
+        return result.returncode == 0
+    except Exception:
+        return False
+
 def alb_target_health(load_balancer_arn: str) -> str:
     # Caller should provide ARN; this returns raw JSON for inspection.
     return run(["aws", "elbv2", "describe-target-health",

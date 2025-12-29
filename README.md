@@ -4,7 +4,9 @@ This repository contains the hands-on workshop materials for deploying, operatin
 
 The workshop is designed for **platform, infrastructure, and MLOps engineers** responsible for running LangSmith in enterprise settings. It emphasizes **operational correctness**, **repeatability**, and **real-world failure modes** over conceptual training.
 
-This repo complements (but does not replace) the high-level deployment documentation on docs.langchain.com. Where the docs explain *what* to do, this workshop focuses on *how to do it safely and repeatedly*.
+> **Note:** This workshop assumes deployment using *NIX-based servers, preferably Linux. If you must use Windows please raise an issue in the [Github](https://github.com/langchain-ai/langsmith-self-hosted-workshops) repo and LangChain engineers will address it. 
+
+This repo complements (but does not replace) the high-level deployment instructions [the LangSmith documentation](https://docs.langchain.com). Where the docs explain *what* to do, this workshop focuses on *how to do it safely and repeatedly*.
 
 ---
 
