@@ -180,7 +180,7 @@ git clone https://github.com/langchain-ai/helm.git <your-helm-path>
 ### 3. Start the Workshop
 
 1. Read `docs/modules/module-1.md` for module overview and context
-2. Open `notebooks/module-1/01_aws_preflight.ipynb` in Jupyter
+2. Open `notebooks/module-1/01_preflight.ipynb` in Jupyter
 3. Run the bootstrap cell (first cell) to validate your environment
 4. Follow the notebook cells sequentially
 
