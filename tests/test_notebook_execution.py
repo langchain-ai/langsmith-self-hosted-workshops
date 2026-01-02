@@ -1,0 +1,167 @@
+"""
+Test notebook execution using nbconvert.
+
+This module executes notebooks and validates they complete without errors.
+"""
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+import pytest
+
+# Repository root
+REPO_ROOT = Path(__file__).parent.parent
+NOTEBOOKS_DIR = REPO_ROOT / "notebooks"
+
+
+def execute_notebook(notebook_path: Path, timeout: int = 600) -> tuple[bool, str]:
+    """
+    Execute a Jupyter notebook using nbconvert.
+    
+    Args:
+        notebook_path: Path to the notebook file
+        timeout: Maximum execution time in seconds
+        
+    Returns:
+        Tuple of (success: bool, output: str)
+    """
+    try:
+        # Use nbconvert to execute the notebook
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "jupyter",
+                "nbconvert",
+                "--to",
+                "notebook",
+                "--execute",
+                "--inplace",
+                "--ExecutePreprocessor.timeout=600",
+                "--ExecutePreprocessor.kernel_name=python3",
+                str(notebook_path),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            cwd=str(notebook_path.parent),
+        )
+        
+        if result.returncode == 0:
+            return True, result.stdout
+        else:
+            error_msg = f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+            return False, error_msg
+            
+    except subprocess.TimeoutExpired:
+        return False, f"Notebook execution timed out after {timeout} seconds"
+    except Exception as e:
+        return False, f"Error executing notebook: {str(e)}"
+
+
+def get_notebook_cells(notebook_path: Path) -> list:
+    """Get all code cells from a notebook."""
+    with open(notebook_path, "r") as f:
+        nb = json.load(f)
+    return [cell for cell in nb.get("cells", []) if cell.get("cell_type") == "code"]
+
+
+class TestNotebookExecution:
+    """Base class for notebook execution tests."""
+    
+    @pytest.fixture(autouse=True)
+    def setup_test_env(self, monkeypatch):
+        """Set up test environment variables."""
+        # Set minimal required env vars for testing
+        test_env = {
+            "NAMESPACE": "langsmith-test",
+            "CLUSTER_NAME": "test-cluster",
+            "HELM_RELEASE": "langsmith",
+            "ARTIFACTS_DIR": str(REPO_ROOT / "tests" / "artifacts"),
+            "CLOUD_PROVIDER": os.environ.get("CLOUD_PROVIDER", "aws"),
+            "AWS_REGION": os.environ.get("AWS_REGION", "us-west-2"),
+            "AZURE_LOCATION": os.environ.get("AZURE_LOCATION", "eastus"),
+            # Mock values for testing (will fail actual operations but allow syntax checks)
+            "LANGSMITH_DOMAIN": "test.langsmith.example.com",
+            "OIDC_ISSUER": "https://test-idp.example.com/oauth2/default",
+            "OIDC_CLIENT_ID": "test-client-id",
+            "OIDC_CLIENT_SECRET": "test-client-secret",
+            "OIDC_REDIRECT_URI": "https://test.langsmith.example.com/auth/callback",
+        }
+        
+        for key, value in test_env.items():
+            monkeypatch.setenv(key, value)
+    
+    def _validate_notebook_syntax(self, notebook_path: Path):
+        """Helper method to validate notebook has valid JSON structure and code cells."""
+        assert notebook_path.exists(), f"Notebook not found: {notebook_path}"
+        
+        with open(notebook_path, "r") as f:
+            nb = json.load(f)
+        
+        assert "cells" in nb, "Notebook missing cells"
+        assert len(nb["cells"]) > 0, "Notebook has no cells"
+        
+        code_cells = [c for c in nb["cells"] if c.get("cell_type") == "code"]
+        assert len(code_cells) > 0, "Notebook has no code cells"
+
+
+# Module 1 tests
+class TestModule1Notebooks(TestNotebookExecution):
+    """Test Module 1 notebooks."""
+    
+    @pytest.mark.parametrize("notebook", [
+        "01_preflight.ipynb",
+        # Note: Skip terraform/helm/validation notebooks in CI as they require actual infrastructure
+        # "02_terraform_apply.ipynb",
+        # "03_helm_install_langsmith.ipynb",
+        # "04_validate_ingress_and_ui.ipynb",
+        # "99_teardown.ipynb",
+    ])
+    def test_module1_notebook_syntax(self, notebook):
+        """Test Module 1 notebook syntax."""
+        notebook_path = NOTEBOOKS_DIR / "module-1" / notebook
+        self._validate_notebook_syntax(notebook_path)
+    
+    @pytest.mark.skipif(
+        os.environ.get("CI_SKIP_EXECUTION") == "true",
+        reason="Skipping execution in CI (requires infrastructure)"
+    )
+    @pytest.mark.parametrize("notebook", [
+        "01_preflight.ipynb",
+    ])
+    def test_module1_notebook_execution(self, notebook):
+        """Test Module 1 notebook execution (only if infrastructure available)."""
+        notebook_path = NOTEBOOKS_DIR / "module-1" / notebook
+        success, output = execute_notebook(notebook_path, timeout=300)
+        assert success, f"Notebook execution failed:\n{output}"
+
+
+# Module 2 tests
+class TestModule2Notebooks(TestNotebookExecution):
+    """Test Module 2 notebooks."""
+    
+    @pytest.mark.parametrize("notebook", [
+        "01_sso_oidc_validation.ipynb",
+        "02_sso_saml_validation.ipynb",
+    ])
+    def test_module2_notebook_syntax(self, notebook):
+        """Test Module 2 notebook syntax."""
+        notebook_path = NOTEBOOKS_DIR / "module-2" / notebook
+        self._validate_notebook_syntax(notebook_path)
+    
+    @pytest.mark.skipif(
+        os.environ.get("CI_SKIP_EXECUTION") == "true",
+        reason="Skipping execution in CI (requires infrastructure)"
+    )
+    @pytest.mark.parametrize("notebook", [
+        "01_sso_oidc_validation.ipynb",
+        "02_sso_saml_validation.ipynb",
+    ])
+    def test_module2_notebook_execution(self, notebook):
+        """Test Module 2 notebook execution (only if infrastructure available)."""
+        notebook_path = NOTEBOOKS_DIR / "module-2" / notebook
+        success, output = execute_notebook(notebook_path, timeout=300)
+        assert success, f"Notebook execution failed:\n{output}"
+

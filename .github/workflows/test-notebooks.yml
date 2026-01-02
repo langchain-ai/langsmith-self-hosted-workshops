@@ -1,0 +1,254 @@
+name: Test Notebooks
+
+on:
+  pull_request:
+    branches:
+      - main
+      - master
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  test-notebook-syntax:
+    name: Test Notebook Syntax
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+      
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+      
+      - name: Install test dependencies
+        run: |
+          pip install -r tests/requirements.txt
+      
+      - name: Run notebook syntax tests
+        env:
+          CI_SKIP_EXECUTION: "true"  # Skip full execution, only test syntax
+          NAMESPACE: "langsmith-test"
+          CLUSTER_NAME: "test-cluster"
+          HELM_RELEASE: "langsmith"
+          CLOUD_PROVIDER: "aws"
+          AWS_REGION: "us-west-2"
+          AZURE_LOCATION: "eastus"
+          LANGSMITH_DOMAIN: "test.langsmith.example.com"
+          OIDC_ISSUER: "https://test-idp.example.com/oauth2/default"
+          OIDC_CLIENT_ID: "test-client-id"
+          OIDC_CLIENT_SECRET: "test-client-secret"
+          OIDC_REDIRECT_URI: "https://test.langsmith.example.com/auth/callback"
+        run: |
+          pytest tests/test_notebook_execution.py::TestModule1Notebooks::test_module1_notebook_syntax -v
+          pytest tests/test_notebook_execution.py::TestModule2Notebooks::test_module2_notebook_syntax -v
+      
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-artifacts
+          path: tests/artifacts/
+          retention-days: 1
+
+  test-module-1-preflight:
+    name: Test Module 1 Preflight (Dry Run)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: test-notebook-syntax
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+      
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+          # Install mock tools (these won't actually work, but allow import checks)
+          sudo ln -sf /bin/true /usr/local/bin/aws || true
+          sudo ln -sf /bin/true /usr/local/bin/terraform || true
+          sudo ln -sf /bin/true /usr/local/bin/helm || true
+          sudo ln -sf /bin/true /usr/local/bin/kubectl || true
+      
+      - name: Install test dependencies
+        run: |
+          pip install -r tests/requirements.txt
+      
+      - name: Create test environment file
+        run: |
+          mkdir -p notebooks
+          cat > notebooks/workshop.env <<EOF
+          WORKSHOP_NAME="langsmith-test"
+          NAMESPACE="langsmith-test"
+          CLUSTER_NAME="test-cluster"
+          AWS_REGION="us-west-2"
+          HELM_RELEASE="langsmith"
+          ARTIFACTS_DIR="./tests/artifacts"
+          DRY_RUN="true"
+          EOF
+      
+      - name: Run Module 1 preflight notebook (syntax only)
+        env:
+          CI_SKIP_EXECUTION: "true"
+          NAMESPACE: "langsmith-test"
+          CLUSTER_NAME: "test-cluster"
+          HELM_RELEASE: "langsmith"
+          CLOUD_PROVIDER: "aws"
+          AWS_REGION: "us-west-2"
+        run: |
+          # Test that notebook can be loaded and parsed
+          python -c "
+          import json
+          import sys
+          from pathlib import Path
+          
+          nb_path = Path('notebooks/module-1/01_preflight.ipynb')
+          with open(nb_path) as f:
+              nb = json.load(f)
+          
+          # Validate structure
+          assert 'cells' in nb
+          assert len(nb['cells']) > 0
+          print(f'✅ Notebook structure valid: {len(nb[\"cells\"])} cells')
+          sys.exit(0)
+          "
+      
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: module-1-artifacts
+          path: tests/artifacts/
+          retention-days: 1
+
+  test-module-2-syntax:
+    name: Test Module 2 Notebooks (Syntax)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: test-notebook-syntax
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+      
+      - name: Install test dependencies
+        run: |
+          pip install -r tests/requirements.txt
+      
+      - name: Create test environment file
+        run: |
+          mkdir -p notebooks
+          cat > notebooks/workshop.env <<EOF
+          WORKSHOP_NAME="langsmith-test"
+          NAMESPACE="langsmith-test"
+          CLUSTER_NAME="test-cluster"
+          AWS_REGION="us-west-2"
+          HELM_RELEASE="langsmith"
+          ARTIFACTS_DIR="./tests/artifacts"
+          LANGSMITH_DOMAIN="test.langsmith.example.com"
+          OIDC_ISSUER="https://test-idp.example.com/oauth2/default"
+          OIDC_CLIENT_ID="test-client-id"
+          OIDC_CLIENT_SECRET="test-client-secret"
+          OIDC_REDIRECT_URI="https://test.langsmith.example.com/auth/callback"
+          EOF
+      
+      - name: Validate Module 2 notebooks
+        env:
+          CI_SKIP_EXECUTION: "true"
+          NAMESPACE: "langsmith-test"
+          CLUSTER_NAME: "test-cluster"
+          HELM_RELEASE: "langsmith"
+          LANGSMITH_DOMAIN: "test.langsmith.example.com"
+          OIDC_ISSUER: "https://test-idp.example.com/oauth2/default"
+          OIDC_CLIENT_ID: "test-client-id"
+          OIDC_CLIENT_SECRET: "test-client-secret"
+          OIDC_REDIRECT_URI: "https://test.langsmith.example.com/auth/callback"
+        run: |
+          python -c "
+          import json
+          import sys
+          from pathlib import Path
+          
+          notebooks = [
+              'notebooks/module-2/01_sso_oidc_validation.ipynb',
+              'notebooks/module-2/02_sso_saml_validation.ipynb',
+          ]
+          
+          for nb_path_str in notebooks:
+              nb_path = Path(nb_path_str)
+              if not nb_path.exists():
+                  print(f'❌ Notebook not found: {nb_path}')
+                  sys.exit(1)
+              
+              with open(nb_path) as f:
+                  nb = json.load(f)
+              
+              assert 'cells' in nb, f'Missing cells in {nb_path}'
+              assert len(nb['cells']) > 0, f'No cells in {nb_path}'
+              
+              code_cells = [c for c in nb['cells'] if c.get('cell_type') == 'code']
+              print(f'✅ {nb_path.name}: {len(code_cells)} code cells, {len(nb[\"cells\"])} total cells')
+          
+          print('✅ All Module 2 notebooks validated')
+          sys.exit(0)
+          "
+      
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: module-2-artifacts
+          path: tests/artifacts/
+          retention-days: 1
+
+  lint-python:
+    name: Lint Python Code
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+      
+      - name: Install linting tools
+        run: |
+          pip install flake8 black isort
+      
+      - name: Run flake8
+        run: |
+          flake8 notebooks/shared/ tests/ --max-line-length=120 --ignore=E501,W503 || true
+      
+      - name: Check code formatting with black
+        run: |
+          black --check notebooks/shared/ tests/ || true
+
