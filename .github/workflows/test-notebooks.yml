@@ -53,6 +53,8 @@ jobs:
         run: |
           pytest tests/test_notebook_execution.py::TestModule1Notebooks::test_module1_notebook_syntax -v
           pytest tests/test_notebook_execution.py::TestModule2Notebooks::test_module2_notebook_syntax -v
+          pytest tests/test_notebook_execution.py::TestModule3Notebooks::test_module3_notebook_syntax -v
+          pytest tests/test_notebook_execution.py::TestModule4Notebooks::test_module4_notebook_syntax -v
       
       - name: Upload test artifacts
         if: always()

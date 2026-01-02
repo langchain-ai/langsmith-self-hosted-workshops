@@ -190,3 +190,94 @@ class TestModule2Notebooks(TestNotebookExecution):
         success, output = execute_notebook(notebook_path, timeout=300)
         assert success, f"Notebook execution failed:\n{output}"
 
+
+# Module 3 tests
+class TestModule3Notebooks(TestNotebookExecution):
+    """Test Module 3 notebooks."""
+    
+    @pytest.mark.parametrize("notebook", [
+        "01_ops_sanity_checks.ipynb",
+    ])
+    def test_module3_notebook_syntax(self, notebook):
+        """Test Module 3 notebook syntax."""
+        notebook_path = NOTEBOOKS_DIR / "module-3" / notebook
+        self._validate_notebook_syntax(notebook_path)
+    
+    @pytest.mark.skipif(
+        os.environ.get("CI_SKIP_EXECUTION") == "true",
+        reason="Skipping execution in CI (requires infrastructure)"
+    )
+    @pytest.mark.parametrize("notebook", [
+        "01_ops_sanity_checks.ipynb",
+    ])
+    def test_module3_notebook_execution(self, notebook):
+        """Test Module 3 notebook execution (only if infrastructure available)."""
+        notebook_path = NOTEBOOKS_DIR / "module-3" / notebook
+        # Ops sanity checks may take longer due to resource usage checks
+        success, output = execute_notebook(notebook_path, timeout=600)
+        assert success, f"Notebook execution failed:\n{output}"
+
+
+# Module 4 tests
+class TestModule4Notebooks(TestNotebookExecution):
+    """Test Module 4 notebooks."""
+    
+    @pytest.mark.parametrize("notebook", [
+        "00_setup_or_resume_environment.ipynb",
+        "01_diagnostics_baseline.ipynb",
+        "10_failure_lab_postgres.ipynb",
+        "20_failure_lab_redis.ipynb",
+        "30_failure_lab_clickhouse.ipynb",
+        "40_failure_lab_blob_storage.ipynb",
+    ])
+    def test_module4_notebook_syntax(self, notebook):
+        """Test Module 4 notebook syntax."""
+        notebook_path = NOTEBOOKS_DIR / "module-4" / notebook
+        self._validate_notebook_syntax(notebook_path)
+    
+    @pytest.mark.skipif(
+        os.environ.get("CI_SKIP_EXECUTION") == "true",
+        reason="Skipping execution in CI (requires infrastructure)"
+    )
+    @pytest.mark.parametrize("notebook", [
+        "00_setup_or_resume_environment.ipynb",
+        "01_diagnostics_baseline.ipynb",
+    ])
+    def test_module4_notebook_execution(self, notebook):
+        """
+        Test Module 4 notebook execution (only if infrastructure available).
+        
+        Tests setup and baseline notebooks which are read-only validation.
+        Failure labs are syntax-tested only to avoid modifying production environments.
+        """
+        notebook_path = NOTEBOOKS_DIR / "module-4" / notebook
+        # Setup and baseline checks may take longer due to diagnostics collection
+        success, output = execute_notebook(notebook_path, timeout=600)
+        assert success, f"Notebook execution failed:\n{output}"
+    
+    @pytest.mark.skipif(
+        os.environ.get("CI_SKIP_EXECUTION") == "true",
+        reason="Skipping execution in CI (requires infrastructure and failure injection)"
+    )
+    @pytest.mark.parametrize("notebook", [
+        "10_failure_lab_postgres.ipynb",
+        "20_failure_lab_redis.ipynb",
+        "30_failure_lab_clickhouse.ipynb",
+        "40_failure_lab_blob_storage.ipynb",
+    ])
+    def test_module4_failure_lab_execution(self, notebook):
+        """
+        Test Module 4 failure lab notebook execution (only if infrastructure available).
+        
+        WARNING: These notebooks inject failures by modifying secrets and configurations.
+        They should only be run in test environments, not production.
+        
+        These tests validate that failure injection and remediation workflows function
+        correctly. The notebooks include safety mechanisms (commented-out injection code)
+        but should still be used with caution.
+        """
+        notebook_path = NOTEBOOKS_DIR / "module-4" / notebook
+        # Failure labs may take longer due to failure injection, observation, and remediation
+        success, output = execute_notebook(notebook_path, timeout=900)  # 15 minutes
+        assert success, f"Notebook execution failed:\n{output}"
+
