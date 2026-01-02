@@ -113,11 +113,11 @@ class TestModule1Notebooks(TestNotebookExecution):
     
     @pytest.mark.parametrize("notebook", [
         "01_preflight.ipynb",
+        "99_teardown.ipynb",  # Always test syntax, even if execution is skipped
         # Note: Skip terraform/helm/validation notebooks in CI as they require actual infrastructure
         # "02_terraform_apply.ipynb",
         # "03_helm_install_langsmith.ipynb",
         # "04_validate_ingress_and_ui.ipynb",
-        # "99_teardown.ipynb",
     ])
     def test_module1_notebook_syntax(self, notebook):
         """Test Module 1 notebook syntax."""
@@ -136,6 +136,31 @@ class TestModule1Notebooks(TestNotebookExecution):
         notebook_path = NOTEBOOKS_DIR / "module-1" / notebook
         success, output = execute_notebook(notebook_path, timeout=300)
         assert success, f"Notebook execution failed:\n{output}"
+    
+    @pytest.mark.skipif(
+        os.environ.get("CI_SKIP_EXECUTION") == "true",
+        reason="Skipping execution in CI (requires infrastructure)"
+    )
+    def test_module1_teardown_execution(self):
+        """
+        Test Module 1 teardown notebook execution.
+        
+        This test runs when CI_SKIP_EXECUTION is not true, ensuring that
+        resources created during execution tests are properly cleaned up.
+        
+        IMPORTANT: This test should run AFTER other execution tests to ensure
+        proper cleanup. It will destroy all infrastructure created during testing.
+        
+        Note: The teardown notebook has commented-out code sections that must be
+        uncommented to actually destroy resources. This test validates the notebook
+        structure and execution flow, but actual resource destruction requires
+        manual uncommenting in the notebook itself.
+        """
+        notebook_path = NOTEBOOKS_DIR / "module-1" / "99_teardown.ipynb"
+        # Teardown may take longer, especially for Terraform destroy
+        # Using 30 minutes timeout to allow for full infrastructure teardown
+        success, output = execute_notebook(notebook_path, timeout=1800)  # 30 minutes
+        assert success, f"Teardown notebook execution failed:\n{output}"
 
 
 # Module 2 tests
