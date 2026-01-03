@@ -5,7 +5,7 @@ This directory contains notebooks for Module 4 of the LangSmith Self-Hosted Oper
 ## Notebooks
 
 ### Setup & Baseline
-- **`00_setup_or_resume_environment.ipynb`** - Validates environment is ready for Module 4
+- **`../shared/00_setup_or_resume_environment.ipynb`** - Validates environment is ready (shared across modules 2, 3, 4)
 - **`01_diagnostics_baseline.ipynb`** - Captures baseline diagnostics (run this first!)
 
 ### Failure Labs
@@ -19,7 +19,7 @@ This directory contains notebooks for Module 4 of the LangSmith Self-Hosted Oper
 
 ## Workflow
 
-1. Run `00_setup_or_resume_environment.ipynb` to verify your environment
+1. Run `../shared/00_setup_or_resume_environment.ipynb` to verify your environment
 2. Run `01_diagnostics_baseline.ipynb` to capture baseline
 3. Run failure labs in order (10, 20, 30, 40) or pick specific ones
 4. Optionally run `90_full_incident_drill.ipynb` for complete practice
