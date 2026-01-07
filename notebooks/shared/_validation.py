@@ -1,5 +1,6 @@
 from __future__ import annotations
 import os
+from datetime import date
 
 def ok(msg: str) -> None:
     print(f"✅ {msg}")
@@ -18,6 +19,9 @@ def require_env(*keys: str) -> dict:
         if not v:
             missing.append(k)
         cfg[k] = v
+        if k == 'CLUSTER_NAME':
+            # Add a hardcoded prefix to the cluster name
+            cfg[k] = f"langsmith-workshop-{date.today().strftime('%Y%m%d')}-{v}"
     if missing:
         fail(f"Missing required environment variables: {', '.join(missing)}")
     return cfg

@@ -1,0 +1,11 @@
+# Test artifacts
+artifacts/
+*.pyc
+__pycache__/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Notebook execution outputs
+*.ipynb_checkpoints
+

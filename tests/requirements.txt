@@ -1,0 +1,11 @@
+# Test dependencies for notebook execution
+pytest>=7.0.0
+jupyter>=1.0.0
+nbconvert>=6.0.0
+ipykernel>=6.0.0
+
+# Notebook dependencies (should match what notebooks need)
+python-dotenv>=1.0.0
+pyyaml>=6.0
+requests>=2.28.0
+

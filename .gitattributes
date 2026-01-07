@@ -1,0 +1,3 @@
+# Automatically strip output cells from Jupyter notebooks before committing
+*.ipynb filter=nbstripout
+

@@ -6,6 +6,8 @@ The workshop is designed for **platform, infrastructure, and MLOps engineers** r
 
 > **Note:** This workshop assumes deployment using *NIX-based servers, preferably Linux. If you must use Windows please raise an issue in the [Github](https://github.com/langchain-ai/langsmith-self-hosted-workshops) repo and LangChain engineers will address it. 
 
+> **Note:** This workshop uses Jupyter notebooks for its demonstrations. You have the option of running them locally via your own [Jupyter server](https://jupyter.org/) or use Google's [Github-to-Colab tool](https://githubtocolab.com) with your existing Google Suite account. 
+
 This repo complements (but does not replace) the high-level deployment instructions [the LangSmith documentation](https://docs.langchain.com). Where the docs explain *what* to do, this workshop focuses on *how to do it safely and repeatedly*.
 
 ---
@@ -178,7 +180,7 @@ git clone https://github.com/langchain-ai/helm.git <your-helm-path>
 ### 3. Start the Workshop
 
 1. Read `docs/modules/module-1.md` for module overview and context
-2. Open `notebooks/module-1/01_aws_preflight.ipynb` in Jupyter
+2. Open `notebooks/module-1/01_preflight.ipynb` in Jupyter
 3. Run the bootstrap cell (first cell) to validate your environment
 4. Follow the notebook cells sequentially
 
